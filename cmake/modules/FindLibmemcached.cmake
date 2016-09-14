@@ -6,7 +6,7 @@
 #  LIBMEMCACHED_LIBRARIES    - List of libraries when using libmemcached.
 #  LIBMEMCACHED_FOUND        - True if libmemcached found.
 
-FIND_PATH(LIBMEMCACHED_INCLUDE_DIR NAMES libmemcached/memcached.h)
+FIND_PATH(LIBMEMCACHED_INCLUDE_DIR NAMES libmemcached-1.0/memcached.h)
 
 FIND_LIBRARY(LIBMEMCACHED_LIBRARY
     NAMES memcached

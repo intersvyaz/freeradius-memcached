@@ -9,7 +9,7 @@
 FIND_PATH(LIBFREERADIUS_INCLUDE_DIR NAMES freeradius/libradius.h)
 
 FIND_LIBRARY(LIBFREERADIUS_LIBRARY
-    NAMES freeradius-radius freeradius-eap
+    NAMES freeradius-server freeradius-radius freeradius-eap
     PATH_SUFFIXES freeradius
 )
 

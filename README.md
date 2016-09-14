@@ -1,33 +1,63 @@
-# rlm_memcache_ops
+# FreeRADIUS 3.x memcached module
 
-### Build instructions
-Separate build Using CMAKE:
-```bash
-mkdir build
-cd build
-cmake ..
-make
-```
-
-For in-tree build just copy source files to `src/modules/rlm_memcache_ops` and add module in Make.inc MDOULES section.
-
+Simple module for performing get/set memcached operations.
 
 ### Config examples
-
 ```
 # Get value
-memcache_ops get_example {
-    config = "--SERVER=127.0.0.1"
+memcached memcached_get_example {
+    # Perform get action
     action = "get"
+
+    # Memcached configuration options, as documented here:
+    #    http://docs.libmemcached.org/libmemcached_configuration.html#memcached
+    config = "--SERVER=127.0.0.1"
+
+    # Connection pool
+    pool {
+        start = ${thread[pool].start_servers}
+        min = ${thread[pool].min_spare_servers}
+        max = ${thread[pool].max_servers}
+        spare = ${thread[pool].max_spare_servers}
+        uses = 0
+        lifetime = 0
+        idle_timeout = 60
+    }
+    
+    # Key (support attributes substitution)
     key = "ip:%{User-Name}"
-    output_attr = "Calling-Station-Id"
+    
+    # Output attribute
+    output_attr = &Calling-Station-Id
 }
 
 # Set value
-memcache_ops set_example {
-    config = "--SERVER=127.0.0.1"
+memcached memcached_set_example {
+    # Perform set action
     action = "set"
+
+    # Memcached configuration options, as documented here:
+    #    http://docs.libmemcached.org/libmemcached_configuration.html#memcached
+    config = "--SERVER=127.0.0.1"
+    
+    # Connection pool
+    pool {
+        start = ${thread[pool].start_servers}
+        min = ${thread[pool].min_spare_servers}
+        max = ${thread[pool].max_servers}
+        spare = ${thread[pool].max_spare_servers}
+        uses = 0
+        lifetime = 0
+        idle_timeout = 60
+    }
+    
+    # Key (support attributes substitution)
     key = "nasip:%{Calling-Station-Id}"
-    value = "%{Nas-Ip-Address}"
+    
+    # Value (support attributes substitution)
+    value = &Nas-Ip-Address
+    
+    # Record TTL in seconds (optional, default value is 0)
+    ttl = 0
 }
 ```

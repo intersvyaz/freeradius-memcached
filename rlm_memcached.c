@@ -27,9 +27,9 @@ typedef struct rlm_memcached_conn {
 } rlm_memcached_conn_t;
 
 static const CONF_PARSER module_config[] = {
-    {"action", FR_CONF_OFFSET(PW_TYPE_STRING | PW_TYPE_NOT_EMPTY, rlm_memcached_t, cfg.action), NULL},
+    {"action", FR_CONF_OFFSET(PW_TYPE_STRING | PW_TYPE_REQUIRED, rlm_memcached_t, cfg.action), NULL},
     {"config", FR_CONF_OFFSET(PW_TYPE_STRING | PW_TYPE_NOT_EMPTY, rlm_memcached_t, cfg.config), NULL},
-    {"key", FR_CONF_OFFSET(PW_TYPE_STRING | PW_TYPE_TMPL | PW_TYPE_NOT_EMPTY, rlm_memcached_t, cfg.key), NULL},
+    {"key", FR_CONF_OFFSET(PW_TYPE_STRING | PW_TYPE_TMPL | PW_TYPE_REQUIRED, rlm_memcached_t, cfg.key), NULL},
     {"value", FR_CONF_OFFSET(PW_TYPE_STRING | PW_TYPE_TMPL, rlm_memcached_t, cfg.value), NULL},
     {"output_attr", FR_CONF_OFFSET(PW_TYPE_STRING | PW_TYPE_TMPL, rlm_memcached_t, cfg.output_attr), NULL},
     {"ttl", FR_CONF_OFFSET(PW_TYPE_SIGNED, rlm_memcached_t, cfg.ttl), "0"},
@@ -69,7 +69,7 @@ static void *mod_conn_create(TALLOC_CTX *ctx, void *instance) {
 
   struct memcached_st *mc = memcached(inst->cfg.config, strlen(inst->cfg.config));
   if (!mc) {
-    ERROR("rlm_memcached (%s): failed to create memcached instance", inst->name);
+    ERROR("rlm_memcached (%s): Failed to create memcached instance", inst->name);
     return NULL;
   }
 
@@ -88,7 +88,6 @@ static void *mod_conn_create(TALLOC_CTX *ctx, void *instance) {
  */
 static int mod_instantiate(CONF_SECTION *conf, void *instance) {
   rlm_memcached_t *inst = instance;
-  bool ok = true;
 
   inst->name = cf_section_name2(conf);
   if (!inst->name) {
@@ -98,34 +97,49 @@ static int mod_instantiate(CONF_SECTION *conf, void *instance) {
   if (!strcasecmp(inst->cfg.action, "get")) {
     inst->action = RLM_MEMCACHED_OPS_GET;
     if (!inst->cfg.output_attr || (inst->cfg.output_attr->type != TMPL_TYPE_ATTR)) {
-      cf_log_err_cs(conf, "invalid option 'output_attr'");
-      ok = false;
+      cf_log_err_cs(conf, "Invalid option 'output_attr'");
+      goto err;
     }
   } else if (!strcasecmp(inst->cfg.action, "set")) {
     inst->action = RLM_MEMCACHED_OPS_SET;
     if (!inst->cfg.value) {
-      cf_log_err_cs(conf, "invalid option 'value'");
-      ok = false;
+      cf_log_err_cs(conf, "Invalid option 'value'");
+      goto err;
     }
   } else {
-    cf_log_err_cs(conf, "invalid option 'action', use 'get' or 'set'");
-    ok = false;
+    cf_log_err_cs(conf, "Invalid option 'action', use 'get' or 'set'");
+    goto err;
   }
 
-  char err_buf[256] = {0};
-  memcached_return_t mret = libmemcached_check_configuration(inst->cfg.config, strlen(inst->cfg.config),
-                                                             err_buf, sizeof(err_buf));
-  if (mret != MEMCACHED_SUCCESS) {
-    cf_log_err_cs(conf, "invalid option 'config': %s", err_buf);
-    ok = false;
+  if (!cf_pair_find(conf, "pool")) {
+    if (!inst->cfg.config) {
+      cf_log_err_cs(conf, "Invalid or missing 'config' option");
+      goto err;
+    } else {
+      char err_buf[256] = {0};
+      memcached_return_t mret = libmemcached_check_configuration(inst->cfg.config, strlen(inst->cfg.config),
+                                                                 err_buf, sizeof(err_buf));
+      if (mret != MEMCACHED_SUCCESS) {
+        cf_log_err_cs(conf, "Invalid option 'config': %s", err_buf);
+        goto err;
+      }
+    }
+  } else {
+    if (inst->cfg.config) {
+      cf_log_err_cs(conf, "Can't use 'config' option when foreign connection pool specified");
+      goto err;
+    }
   }
 
   inst->pool = fr_connection_pool_module_init(conf, inst, mod_conn_create, NULL, inst->name);
   if (!inst->pool) {
-    ok = false;
+    goto err;
   }
 
-  return ok ? 0 : -1;
+  return 0;
+
+  err:
+  return -1;
 }
 
 /**

@@ -184,14 +184,16 @@ static rlm_rcode_t mod_proc(void *instance, REQUEST *request) {
 
     VALUE_PAIR *vp = NULL;
     if (tmpl_find_vp(&vp, request, inst->cfg.output_attr) != 0) {
+      RADIUS_PACKET *packet = radius_packet(request, inst->cfg.output_attr->tmpl_list);
       VALUE_PAIR **vps = radius_list(request, inst->cfg.output_attr->tmpl_list);
-      vp = fr_pair_afrom_da(request, inst->cfg.output_attr->tmpl_da);
+      vp = fr_pair_afrom_da(packet, inst->cfg.output_attr->tmpl_da);
       fr_pair_add(vps, vp);
     }
     fr_pair_value_from_str(vp, value, (size_t) value_len);
 
     RDEBUG2("set %s = %s", inst->cfg.output_attr->name, value);
     code = RLM_MODULE_UPDATED;
+    free(value);
   } else {
     char *value = NULL;
     ssize_t value_len = tmpl_aexpand(request, &value, request, inst->cfg.value, NULL, NULL);
